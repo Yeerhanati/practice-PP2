@@ -1,118 +1,103 @@
 import pygame
-import random
-import sys
+import math
 
-# Initialize Pygame
+# Initialize pygame
 pygame.init()
 
-# Screen Settings
-WIDTH, HEIGHT = 600, 600
+# Window settings
+WIDTH, HEIGHT = 800, 600
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Snake Game with Levels")
-
-# Game Settings
-BLOCK_SIZE = 20
-SPEED = 10
+pygame.display.set_caption("Paint")
+screen.fill((255, 255, 255))
 clock = pygame.time.Clock()
 
-# Colors
-BLACK = (0, 0, 0)
-WHITE = (255, 255, 255)
-RED = (255, 0, 0)
-GREEN = (0, 255, 0)
-BLUE = (0, 0, 255)
+# Drawing variables
+is_drawing = False
+start_point = (0, 0)
+current_shape = "square"
+color_list = [(0, 0, 0), (255, 0, 0), (0, 255, 0), (0, 0, 255)]
+color_index = 0
 
-# Font
-font = pygame.font.SysFont(None, 40)
+# Draw selected shape
+def draw_shape(surface, shape, p1, p2, color):
+    x1, y1 = p1
+    x2, y2 = p2
+    width = abs(x2 - x1)
+    height = abs(y2 - y1)
+    top_left = (min(x1, x2), min(y1, y2))
 
-class SnakeGame:
-    def __init__(self):
-        self.snake = [(WIDTH//2, HEIGHT//2)]
-        self.dx = BLOCK_SIZE
-        self.dy = 0
-        self.food = self.spawn_food()
-        self.score = 0
-        self.level = 1
-        self.speed = SPEED
+    if shape == "square":
+        side = max(width, height)
+        pygame.draw.rect(surface, color, (top_left[0], top_left[1], side, side), 2)
 
-    def spawn_food(self):
-        """Spawn food NOT on snake body"""
-        while True:
-            x = random.randint(0, (WIDTH-BLOCK_SIZE)//BLOCK_SIZE) * BLOCK_SIZE
-            y = random.randint(0, (HEIGHT-BLOCK_SIZE)//BLOCK_SIZE) * BLOCK_SIZE
-            if (x, y) not in self.snake:
-                return (x, y)
+    elif shape == "right_triangle":
+        points = [(x1, y1), (x1, y2), (x2, y2)]
+        pygame.draw.polygon(surface, color, points, 2)
 
-    def move_snake(self):
-        """Move snake and check wall collision"""
-        head_x, head_y = self.snake[0]
-        new_head = (head_x + self.dx, head_y + self.dy)
+    elif shape == "equilateral_triangle":
+        side = max(width, height)
+        tri_height = (math.sqrt(3) / 2) * side
+        points = [(x1, y1), (x1 + side, y1), (x1 + side / 2, y1 + tri_height)]
+        pygame.draw.polygon(surface, color, points, 2)
 
-        # Border Collision (Game Over)
-        if (new_head[0] < 0 or new_head[0] >= WIDTH or
-            new_head[1] < 0 or new_head[1] >= HEIGHT):
-            return False
+    elif shape == "rhombus":
+        center_x = (x1 + x2) // 2
+        center_y = (y1 + y2) // 2
+        half_w = abs(x1 - x2) // 2
+        half_h = abs(y1 - y2) // 2
+        points = [
+            (center_x - half_w, center_y),
+            (center_x, center_y - half_h),
+            (center_x + half_w, center_y),
+            (center_x, center_y + half_h)
+        ]
+        pygame.draw.polygon(surface, color, points, 2)
 
-        # Self Collision
-        if new_head in self.snake:
-            return False
-
-        self.snake.insert(0, new_head)
-        
-        # Eat Food
-        if new_head == self.food:
-            self.score += 1
-            self.food = self.spawn_food()
-            # Level Up every 4 foods
-            if self.score % 4 == 0:
-                self.level += 1
-                self.speed += 2
-        else:
-            self.snake.pop()
-        return True
-
-    def draw(self):
-        screen.fill(BLACK)
-        # Draw Snake
-        for segment in self.snake:
-            pygame.draw.rect(screen, GREEN, (segment[0], segment[1], BLOCK_SIZE-2, BLOCK_SIZE-2))
-        # Draw Food
-        pygame.draw.rect(screen, RED, (self.food[0], self.food[1], BLOCK_SIZE-2, BLOCK_SIZE-2))
-        # Draw UI
-        screen.blit(font.render(f"Score: {self.score}", True, WHITE), (10, 10))
-        screen.blit(font.render(f"Level: {self.level}", True, WHITE), (WIDTH-120, 10))
-
-# Game Instance
-game = SnakeGame()
 running = True
 
+# Main loop
 while running:
-    clock.tick(game.speed)
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
-        # Direction Control
+
+        # Start drawing
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            is_drawing = True
+            start_point = event.pos
+
+        # Real-time preview while dragging
+        if event.type == pygame.MOUSEMOTION and is_drawing:
+            temp_surface = screen.copy()
+            draw_shape(temp_surface, current_shape, start_point, event.pos, color_list[color_index])
+            pygame.display.blit(temp_surface, (0, 0))
+
+        # Finish drawing
+        if event.type == pygame.MOUSEBUTTONUP and is_drawing:
+            is_drawing = False
+            draw_shape(screen, current_shape, start_point, event.pos, color_list[color_index])
+
+        # Keyboard control for shapes and color
         if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_UP and game.dy == 0:
-                game.dx = 0
-                game.dy = -BLOCK_SIZE
-            if event.key == pygame.K_DOWN and game.dy == 0:
-                game.dx = 0
-                game.dy = BLOCK_SIZE
-            if event.key == pygame.K_LEFT and game.dx == 0:
-                game.dx = -BLOCK_SIZE
-                game.dy = 0
-            if event.key == pygame.K_RIGHT and game.dx == 0:
-                game.dx = BLOCK_SIZE
-                game.dy = 0
+            if event.key == pygame.K_1:
+                current_shape = "square"
+            if event.key == pygame.K_2:
+                current_shape = "right_triangle"
+            if event.key == pygame.K_3:
+                current_shape = "equilateral_triangle"
+            if event.key == pygame.K_4:
+                current_shape = "rhombus"
+            if event.key == pygame.K_SPACE:
+                color_index = (color_index + 1) % len(color_list)
 
-    # Move Snake
-    if not game.move_snake():
-        print("Game Over!")
-        running = False
+    # Instruction text
+    hint = pygame.font.SysFont(None, 30).render(
+        "1:Square  2:RightTri  3:EquiTri  4:Rhombus  SPACE:Color",
+        True, (0, 0, 0)
+    )
+    screen.blit(hint, (10, 10))
 
-    game.draw()
     pygame.display.update()
+    clock.tick(60)
 
 pygame.quit()
-sys.exit()
